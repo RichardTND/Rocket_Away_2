@@ -2,7 +2,7 @@
 
     !to "rocketaway2+.prg",cbm
     
-   
+    
     *=$0900 
     
     lda $02a6

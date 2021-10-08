@@ -13,15 +13,19 @@ game
         lda #0
         sta $d020
         sta $d021
-        lda #$03
-        sta $dd00
-        lda #$1b
+        lda #$03  ;VIC2 BANK #$03 should be set in game
+        sta $dd00 ;as title mixes VIC2 banks.
+        lda #$1b  
         sta $d011
+        
+        ;Reset game map position 
         
         lda #<mapstart 
         sta mapsm+1
         lda #>mapstart
         sta mapsm+2
+        
+        ;Reset all necessary pointers
         
         ldx #0
 initpointers2
@@ -31,31 +35,40 @@ initpointers2
         cpx #pointersend-pointerstart
         bne initpointers2
         
-!ifdef disablecollision {        
-} else {  
-        lda #40
-        sta energycount
-        lda #$c0
-        sta energyout+1
-}          
-        
         lda #$00
         sta speed
         sta speedstore
         sta firebutton
+        
+        ;Set the value of the energy counter
+        
+        lda #40
+        sta energycount
+        lda #$c0
+        sta energyout+1
+        
+        ;Set game charset type
+        
         lda #$12
         sta $d018
         lda #$18
         sta $d016
-        lda #$09
-        sta csm1+1
-        lda #$09
-        sta csm2+1
         
+        ;Background colour settings 
+        ;for start screen should match 
+        ;the colour of the very first 
+        ;level.
+        
+        lda d022table
+        sta csm1+1
+        lda d023table
+        sta csm2+1
         
 ;-----------------------------------------------------------------------------------
 
-        ;Screen clear (BANK $01)
+        ;Draw the game map start screen, and use WHITE
+        ;MULTICOLOUR as the main fill colour.
+        
         ldx #$00
 clrscr1 lda startscreen,x
         sta $0400,x
@@ -72,6 +85,9 @@ clrscr1 lda startscreen,x
         sta $dae8,x
         inx
         bne clrscr1
+        
+        ;Fill out the temporary rows that draw the map
+        
         ldx #$00
 clrme   lda #$20
         sta rowtemp1,x
@@ -80,6 +96,7 @@ clrme   lda #$20
         bne clrme
 
 ;-----------------------------------------------------------------------------------        
+
         ;Before unleashing the interrupts
         ;init all pointers.
         
@@ -90,6 +107,9 @@ initpointers
         inx
         cpx #pointersend-pointers
         bne initpointers
+        
+        ;Set pointers
+        
         lda #8
         sta speedlimit
         lda #32
@@ -103,6 +123,8 @@ initpointers
         lda #1
         sta speedlimit
         
+        ;Inititialise score 
+        
         ldx #$00
 zeroscore
         lda #$30
@@ -114,6 +136,8 @@ zeroscore
 ;-----------------------------------------------------------------------------------
         
         ;Setup start position for the game sprites
+        ;(read startpos table and store to object 
+        ;read position (not hardware sprite pos yet)
         
         ldx #$00
 initpos
@@ -124,10 +148,15 @@ initpos
         bne initpos
         
         ;Set default sprites for objects
+        
         lda #$0b
         sta $d025
         lda #$01
         sta $d026 
+        
+        ;We want to avoid messed up sprites, 
+        ;so store the frames to the hardware
+        ;sprite frames.
         
         lda playerframe 
         sta $07f8
@@ -146,13 +175,18 @@ initpos
         lda #$8e
         sta $07ff
         
+    
+        
         ldx #$00
 blueout        
         lda #$0e
-        sta $d027 ,x
+        sta $d027,x
         inx
         cpx #$08
         bne blueout 
+        
+        ;Fill messy screen flick areas with plain 
+        ;black
         
         ldx #$00
 blackoutflicker
@@ -163,6 +197,10 @@ blackoutflicker
         inx
         cpx #$28
         bne blackoutflicker
+    
+        ;Draw energy bar at second but last row 
+        ;(as the very last row will be hidden 
+        ;due to the VIC2 vertical scroll position
         
         ldx #$00
 energydraw
@@ -189,11 +227,6 @@ energydraw
         sta $d017
         sta $d01d
         
-        lda #5
-        sta maxtospawnlimit
-        lda #0
-        sta maxtospawn
-        
         ;Setup IRQ raster interrupt 
         lda #0
         sta $d015
@@ -201,7 +234,7 @@ energydraw
 
 ;-----------------------------------------------------------------------------------        
         
-        ;Display GET READY text 
+        ;Display GET READY text in 2x2 charset
         
 showgrtext        
               ldx #$00
@@ -234,6 +267,8 @@ getgrtext
               ;splits that controls the game 
               ;engine, and scroller
               
+        ldx #$fb 
+        txs
         ldx #<girq1
         ldy #>girq1
         lda #$7f
@@ -251,7 +286,7 @@ getgrtext
         sta $d011
         lda #$01
         sta $d01a
-        lda #0
+        lda #0          ;Initialise music
         jsr musicinit
         cli
         jsr updatepanel
@@ -262,10 +297,7 @@ getgrtext
         ;pressed. The game is ready to start.
 
 getreadyloop
-        lda #0
-        sta rt
-        cmp rt
-        beq *-3
+        jsr syncgame
         jsr objpos2sprite
         lda $dc00
         lsr
@@ -316,6 +348,9 @@ csm2      lda #$0c
           lda #$ff
           sta $d015
           sta $d01c
+          lda #%01111110
+          sta $d01b
+         
           ldx #<girq2
           ldy #>girq2
           lda #$d1
@@ -323,6 +358,7 @@ csm2      lda #$0c
           sty $ffff
           sta $d012
           asl $d019
+          
 gstacka1  lda #$00
 gstackx1  ldx #$00
 gstacky1  ldy #$00
@@ -331,14 +367,14 @@ gstacky1  ldy #$00
           ;IRQ 2 - The Status panel 
           
 girq2     sta gstacka2+1
-          lda $d011
-          lda #0
-          sta $d015
+         
+         
           cmp #$15
           beq flip_d011
           lda #$7b 
           sta $d011
-          
+           lda #0
+          sta $d015
           pha
           pla
           pha
@@ -371,7 +407,7 @@ flip_d011
           
           ldx #<girq1 
           ldy #>girq1 
-          lda #$fa
+          lda #$f8
           stx $fffe
           sty $ffff
           sta $d012 
@@ -398,11 +434,8 @@ levelstart
           ;The main body of the main game loop 
           ;(Calling jump subroutines)
           
-gameloop  lda #0
-          sta rt 
-          cmp rt
-          beq *-3
-           jsr objpos2sprite
+gameloop  jsr syncgame
+          jsr objpos2sprite
           jsr scrollscreen
           jsr randomise
           jsr levelcontrol
@@ -456,7 +489,7 @@ getchar lda panel,y
         inx
         cpx #$28
         bne getchar
-       
+        rts
 
 ;-----------------------------------------------------------------------------------        
         
@@ -483,14 +516,16 @@ doscroll        lda #0
                 
 switch          lda #0
                 sta speed
-                jsr FitRow1
-                jsr FitRow2
+                jsr shiftrows
+                jsr getmap ;Fetch the game's map as you scroll
                 rts
-FitRow1  
+
      
-        jsr getmap ;Fetch the game's map as you scroll
+;------------------------------------------------------------------------        
         
-        
+                ;Main hard scroll, which moves all 40 columns
+                ;down 1 row.
+shiftrows                
        ldx #$27
 ShiftRows1
        lda row10,x
@@ -515,18 +550,16 @@ ShiftRows1
        sta row2,x
        lda row0,x
        sta row1,x
-       lda rowtemp2,x
+       lda rowtemp1,x
        sta row0,x
-       lda rowtemp1,x 
-       sta rowtemp2,x
+      
        dex
        bpl ShiftRows1
-       rts
+      
 FitRow2       
        ldx #$27
 ShiftRows2
-        lda #$20
-        sta row20,x
+       
         lda row18,x
         sta row19,x
         lda row17,x
@@ -546,7 +579,7 @@ ShiftRows2
         lda rowtemp,x
         sta row11,x
         lda rowtemp2,x
-        sta rowtemp,x
+        sta rowtemp1,x
         dex
         bpl ShiftRows2
         jsr scorepoints
@@ -561,7 +594,7 @@ ShiftRows2
         
 getmap  ldx #$27
 mapsm   lda mapstart,x
-        sta rowtemp2,x
+        sta rowtemp1,x
         dex
         bpl mapsm
         lda mapsm+1
@@ -788,7 +821,7 @@ dropstars
 droploop    lda objpos+3,x
             clc
             adc starspeed+1,x
-            cmp #$c2
+            cmp #$c4
             bcc notoutset 
             jsr randomise
          
@@ -970,11 +1003,8 @@ checkchars    ldy zp+3
               ;Player dead - stop background scroll, stars, bonus,etc 
               ;and perform player death, then game over.
               
-             
-              
 rockethit    
-!ifdef disablecollision {
-} else {
+
 egy1          dec energycount
 egy2          dec energyout+1
               lda energyout+1
@@ -982,7 +1012,7 @@ egy2          dec energyout+1
               beq destroyplayer
               lda #$20
 energyout     sta $07c0
-}
+
              lda #1
              sta $d027
               rts
@@ -1003,10 +1033,7 @@ destroyplayer
               sta deathanimpointer
               sta deathanimpointer2
 deathloop              
-              lda #0
-              sta rt
-              cmp rt
-              beq *-3
+              jsr syncgame
               jsr objpos2sprite
               jsr animation
               lda deathanimpointer
@@ -1067,10 +1094,7 @@ getgameovertext
 ;Game over part in game.
 
 gameoverloop              
-              lda #0
-              sta rt
-              cmp rt
-              beq *-3
+              jsr syncgame
               jsr objpos2sprite
               jsr animation
               lda $07f9
@@ -1096,11 +1120,7 @@ gamecomplete  lda #<sfxthrust
               ldx #14
               jsr sfxinit
 gamecompleteloop
-              lda #0
-              sta rt
-              cmp rt
-              beq *-3
-             
+              jsr syncgame
               jsr objpos2sprite
               jsr animation
               lda animstore
@@ -1176,6 +1196,18 @@ clearrow1     lda #$20
               bne clearrow1
               
               jmp gameoverloop
+              
+;---------------------------------------------------------------------------------------
+;
+;             Sync game timer 
+
+syncgame      lda #0
+              sta rt
+              cmp rt 
+              beq *-3
+              rts
+              
+              
 !align $ff,0              
               
 ;Pointers

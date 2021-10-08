@@ -6,6 +6,8 @@
             
 titlescreen
             
+       ;Initialise VIC registers and CIAs 
+       ;and disable IRQ interrupts
        
         sei
         lda #$81
@@ -17,13 +19,17 @@ titlescreen
         lda #$00
         sta $d020
         sta $d021
-        
         sta firebutton
         sta charbit
         lda #<scrolltext
         sta messread+1
         lda #>scrolltext
         sta messread+2
+        
+        ;Clear the whole screen 
+        ;and draw bitmap properties 
+        ;to screen 
+        
         ldx #$00
 buildscreen
         lda #$20
@@ -50,6 +56,8 @@ buildscreen
         inx
         bne buildscreen
         
+        ;Display the hi score table list
+        
         ldx #$00
 maketext
         lda hiscoretable,x 
@@ -67,6 +75,7 @@ maketext
         lda hiscoretable+240,x
         sta $0518+320,x 
         
+        ;Colour hi score text green 
         
         lda #$05
         sta $d918,x
@@ -77,17 +86,22 @@ maketext
         sta $d918+280,x
         sta $d918+320,x
         sta $d918+360,x
-        lda #$0b 
-        sta $dad0,x
-        lda #$09 
+        lda #$0b  ;Scroll text char multicolour cyan 
+        sta $dad0,x 
+        lda #$09  ;Scroll text char multicolour white
         sta $daf8,x
         inx
         cpx #$28
         bne maketext
+        
+        ;Scroll text multicolour blue+light blue
+        
         lda #$0e
         sta $d022
         lda #$06
         sta $d023
+        
+        ;Set test hardware screen to show bitmap
         
         lda #$48
         sta $d018
@@ -100,11 +114,18 @@ maketext
         lda #$18
         sta $d016
         
+        ;Setup sprite priorities
+        
+titlespriteson        
         lda #%00111111
         sta $d015
         sta $d01c
         lda #0
         sta $d01b 
+        
+        ;Setup sprites to form BLAZON
+        ;logo 
+        
         ldx #$00
 blzsetup  
         lda blztable,x
@@ -130,8 +151,7 @@ blzsetup2
         lda #$01
         sta $d026
         
-        
-        
+        ;Initialise IRQ raster interrupt
         
         ldx #<tirq1
         ldy #>tirq1
@@ -151,12 +171,17 @@ blzsetup2
         lda #$01
         sta $d01a
         sta $d019
-        lda #1
+        lda #1        ;Init title music
         jsr musicinit
        
         cli
+        
+        
         jmp titleloop
        
+        
+          ;IRQ 1 - Top open border 
+          
 tirq1     sta tstacka1+1
           stx tstackx1+1
           sty tstacky1+1
@@ -178,6 +203,8 @@ tstackx1  ldx #0
 tstacky1  ldy #0
 nmi       rti 
 
+          ; IRQ 2 - Top bitmap 
+          
 tirq2     sta tstacka2+1
           stx tstackx2+1
           sty tstacky2+1
@@ -205,6 +232,8 @@ tstackx2  ldx #0
 tstacky2  ldy #0 
           rti
           
+          ;IRQ 3 - Credits screen
+          
 tirq3     sta tstacka3+1
           stx tstackx3+1
           sty tstacky3+1
@@ -230,11 +259,13 @@ tstackx3  ldx #0
 tstacky3  ldy #0
           rti 
           
+          ;IRQ 4 - Scroll text 
+          
 tirq4     sta tstacka4+1
           stx tstackx4+1
           sty tstacky4+1
           asl $d019 
-          lda #$da 
+          lda #$da
           sta $d012
        
           lda #$03
@@ -256,13 +287,15 @@ tstackx4  ldx #0
 tstacky4  ldy #0
           rti 
           
+          ;IRQ 5 - Bottom logo
+          
 tirq5     sta tstacka5+1
           stx tstackx5+1
           sty tstacky5+1
           asl $d019
           lda #$fa
           sta $d012
-          
+         
           
           lda #$02 
           sta $dd00
@@ -273,6 +306,8 @@ tirq5     sta tstacka5+1
           lda #$68
           sta $d018
           
+          
+          ;IRQ 6 - Bottom open border
           
           ldx #<tirq6
           ldy #>tirq6
@@ -323,7 +358,7 @@ tstacky6  ldy #0
           
          
 
-
+          ;Main loop (Title screen)
           
 titleloop lda #0
           sta rt
@@ -333,6 +368,10 @@ titleloop lda #0
           jsr textscroller
           jsr movespritex
           jsr movespritexrev
+          
+          ;Wait for fire to be pressed before
+          ;starting the game.
+          
           lda $dc00
           lsr
           lsr
@@ -348,6 +387,9 @@ titleloop lda #0
           ldy #>gameonsfx
           jsr sfxinit
           jmp game
+          
+          ;Expand BLAZON logo MSB group 1
+          
 expandlogo
           ldx #$00
 expandloop lda objpos+1,x
@@ -361,6 +403,8 @@ expandloop lda objpos+1,x
             cpx #16
             bne expandloop
             rts
+            
+            ;Expand BLAZON logo MSB group 2
             
 expandlogo2 
            ldx #$00
@@ -377,7 +421,7 @@ expandloop2
            bne expandloop2
            rts
            
-            
+            ;Main title screen scroll text routine
             
 textscroller 
           lda xpos
@@ -425,7 +469,11 @@ upper     clc
           inc messread+2
 exitscroll rts          
           
+          ;PAL/NTSC timer and music player
+
 soundplayer
+          lda #1
+          sta rt
           lda system
           cmp #1
           beq pal
@@ -433,14 +481,14 @@ soundplayer
           lda ntsctimer
           cmp #$06
           beq resetntsc
-pal       lda #1
-          sta rt
+pal      
           jsr musicplay
           rts
 resetntsc lda #0
           sta ntsctimer
           rts
 
+          ;Sprite movement - Sprite logo #1
 movespritex
           ldx spritetimerx
           lda sinus,x
@@ -460,6 +508,7 @@ movespritex
           inc spritetimerx
           rts
 
+          ;Sprite movement - Logo Bottom
 movespritexrev
 
           ldx spritetimerx2
@@ -481,7 +530,7 @@ movespritexrev
           rts
           
           
-          
+          ;Pointers 
           
           
 system !byte 0
@@ -492,12 +541,17 @@ charbit !byte 0
 spritetimerx !byte 0
 spritetimerx2 !byte 0
 
+          ;Logo sprite values
+          
 blzlogo !byte $97,$98,$99,$9a
          !byte $9b,$9c
          
+         ;Logo colour table
+         
 blzcolour !byte $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f       
 
-
+          ;Logo sprites top position
+          
 blztable  !byte $10,$fc
           !byte $10+12,$fc
           !byte $10+24,$fc
@@ -506,6 +560,8 @@ blztable  !byte $10,$fc
           !byte $10+60,$fc
           !byte $00,$00
           !byte $00,$00
+          
+          ;Logo sprites bottom position
           
 blztable2  !byte $70,$1a
           !byte $70+12,$1a
@@ -516,12 +572,15 @@ blztable2  !byte $70,$1a
           !byte $30,$00
           !byte $30,$00          
           
+          ;Object position for sprites
+          
 objpos2 !byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
           
 !align $ff,$00
 
+      ;Sprite motion sinus table
 sinus 
-SINUS !byte 83,84,85,85,86,87
+      !byte 83,84,85,85,86,87
       !byte 87,88,89,89,90,90
       !byte 91,91,92,92,93,93
       !byte 93,94,94,94,95,95

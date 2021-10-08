@@ -17,15 +17,15 @@
            !ct scr
 scrolltext !text " ... hello there and welcome to *** rocket away ii *** ...   code, "
            !text "sprites, sound effects and music were all done by starhawk ...   "
-           !text "other graphics were drawn by firelord ...   1x1 charset by dirk schmitt ...   "
+           !text "other graphics were drawn by firelord ...   1x1 charset by dirk s ...   "
            !text "tape loader source by martin piper ...   "
            !text "(c) 2021 blazon games "
            !text "division ...   how to play: plug a joystick into port 2 ...   this is a hi score attack challenge ...   the object "
-           !text "of this game is to guide your rocket safely through the asteroid belt ...   "
+            !text "of this game is to guide your rocket safely through the asteroid belt ...   "
            !text "the further you progress, the faster the game will get ...   pick up star pods (marked as b) "
            !text "for bonus points ...   avoid collision with asteroids, otherwise your rocket's energy will "
            !text "drain quickly ...   once your energy is drained, your rocket will explode and "
-           !text "the game will then be over ...   there are 8 levels to complete in total ...   try to climb as far as you can in order "
+           !text "the game will then be over ...   there are 8 levels to complete in total ...   try to fly as far as you can in order "
            !text "to gain a super high score ...   this game carries a safety warning, for its high speed action ...   it is not ideal for those who are drunk, as it may "
            !text "make you even more dizzy and possibly sick, hahaha! ...   special thank you goes to baracuda for "
            !text "help and support, also to firelord for the game graphics and loading bitmap ...   "
@@ -120,6 +120,21 @@ spritegrabber
         
         lda $02a6
         sta system
+        
+        ;Check PAL/NTSC and if system is NTSC
+        ;switch off the border sprites.
+        
+        lda system 
+        cmp #1
+        beq borderspriteson
+        lda #0
+        sta titlespriteson+1
+        jmp .next
+borderspriteson        
+        lda #%00111111
+        sta titlespriteson+1
+        
+.next        
         
         ;Call disk access to load hiscores
         ;(If tape version is being used then
