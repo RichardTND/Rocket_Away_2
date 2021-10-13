@@ -46,19 +46,19 @@ hiscoretable
           !text "           1. "
 hiscorestart          
 name1     !text "starhawk  "
-hiscore1  !text "099000          "
+hiscore1  !text "230000          "
           !text "           2. " 
-name2     !text "baracuda  "
-hiscore2  !text "090210          "
+name2     !text "firelord  "
+hiscore2  !text "228240          "
           !text "           3. "
-name3     !text "firelord  "
-hiscore3  !text "079690          "
+name3     !text "baracuda  "
+hiscore3  !text "137510          "
           !text "           4. "
 name4     !text "logiker   "
 hiscore4  !text "065250          "
           !text "           5. "
 name5     !text "blazon    "  
-hiscore5  !text "030000          "
+hiscore5  !text "050000          "
 hiscoreend
 name      !text "          "
 
@@ -100,8 +100,20 @@ name      !text "          "
 nocheat        
         ;NTSC/PAL checker
         
+p1      lda $d012
+p2      cmp $d012
+        beq p2
+        bmi p1 
+        cmp #$20
+        bcc setntsc 
+        lda #1
+        sta system
+        jmp .next0
+setntsc lda #0    
+        sta system
+.next0        
         ldx #$00
-spritegrabber
+spritegrabber 
         lda $25c0,x
         sta $65c0,x
         lda $2600,x
@@ -116,23 +128,7 @@ spritegrabber
         sta $6700,x
         inx
         cpx #$40
-        bne spritegrabber
-        
-        lda $02a6
-        sta system
-        
-        ;Check PAL/NTSC and if system is NTSC
-        ;switch off the border sprites.
-        
-        lda system 
-        cmp #1
-        beq borderspriteson
-        lda #0
-        sta titlespriteson+1
-        jmp .next
-borderspriteson        
-        lda #%00111111
-        sta titlespriteson+1
+        bne spritegrabber 
         
 .next        
         

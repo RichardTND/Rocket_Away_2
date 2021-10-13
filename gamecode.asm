@@ -1149,15 +1149,7 @@ playbaseok    stx objpos+1
 finishedending
                
               
-              ldx #$00
-destroyasteroids
-              lda #$20
-              sta $0400,x
-              sta $0500,x
-              sta $0600,x
-              sta $06e8,x
-              inx
-              bne destroyasteroids
+             
               lda #$38
               sta leveltext
               jsr updatepanel

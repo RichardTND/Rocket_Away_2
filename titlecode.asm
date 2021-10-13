@@ -16,6 +16,9 @@ titlescreen
         lda #$00
         sta $d019
         sta $d01a
+        sta charcolourstore
+        sta charcolourpointer
+        sta charcolourdelay
         lda #$00
         sta $d020
         sta $d021
@@ -77,7 +80,7 @@ maketext
         
         ;Colour hi score text green 
         
-        lda #$05
+        lda #$00
         sta $d918,x
         sta $d918+80,x
         sta $d918+160,x
@@ -115,8 +118,7 @@ maketext
         sta $d016
         
         ;Setup sprite priorities
-        
-titlespriteson        
+           
         lda #%00111111
         sta $d015
         sta $d01c
@@ -368,6 +370,7 @@ titleloop lda #0
           jsr textscroller
           jsr movespritex
           jsr movespritexrev
+          jsr flasher
           
           ;Wait for fire to be pressed before
           ;starting the game.
@@ -450,7 +453,7 @@ storemess
           ldy charbit
           cpy #1
           beq upper
-lower     sta $06d0+39
+          sta $06d0+39
           clc
           adc #$80 
           sta $06d0+79
@@ -529,6 +532,48 @@ movespritexrev
           dec spritetimerx2
           rts
           
+;Char colour flashing routine 
+flasher
+          lda charcolourdelay 
+          cmp #2
+          beq charcolourok
+          inc charcolourdelay
+          rts
+charcolourok
+          lda #0
+          sta charcolourdelay
+          ldx charcolourpointer 
+          lda charcolourtable,x
+          sta charcolourstore
+          inx 
+          cpx #charcolourtableend-charcolourtable
+          beq resetcharcolour
+          inc charcolourpointer
+          jmp storecharcolour 
+resetcharcolour
+          ldx #0
+          stx charcolourpointer 
+storecharcolour
+        ldy #$00
+.scl        
+        lda charcolourstore
+        sta $d918,y
+        sta $d918+80,y
+        sta $d918+160,y
+        sta $d918+200,y
+        sta $d918+240,y
+        sta $d918+280,y
+        sta $d918+320,y
+        sta $d918+360,y
+        lda #$0b  ;Scroll text char multicolour cyan 
+        sta $dad0,y
+        lda #$09  ;Scroll text char multicolour white
+        sta $daf8,y
+        iny
+        cpy #40
+        bne .scl
+        rts
+          
           
           ;Pointers 
           
@@ -540,12 +585,13 @@ xpos2 !byte 0
 charbit !byte 0
 spritetimerx !byte 0
 spritetimerx2 !byte 0
-
+charcolourdelay !byte 0
+charcolourpointer !byte 0
+charcolourstore !byte 0
           ;Logo sprite values
           
 blzlogo !byte $97,$98,$99,$9a
          !byte $9b,$9c
-         
          ;Logo colour table
          
 blzcolour !byte $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f       
@@ -574,52 +620,59 @@ blztable2  !byte $70,$1a
           
           ;Object position for sprites
           
+charcolourtable
+          !byte $06,$04,$0e,$03,$0e,$04
+charcolourtableend          
+          
 objpos2 !byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
           
 !align $ff,$00
 
       ;Sprite motion sinus table
 sinus 
-      !byte 83,84,85,85,86,87
-      !byte 87,88,89,89,90,90
-      !byte 91,91,92,92,93,93
-      !byte 93,94,94,94,95,95
-      !byte 95,95,95,96,96,96
-      !byte 96,96,96,96,96,96
-      !byte 96,96,96,96,95,95
-      !byte 95,95,94,94,94,93
-      !byte 93,93,92,92,91,91
-      !byte 90,90,89,89,88,88
-      !byte 87,86,86,85,84,83
+     
+
+ SINUS
+      !byte 55,56,57,58,59,60
+      !byte 61,62,63,65,66,67
+      !byte 68,69,70,71,72,73
+      !byte 74,75,76,77,78,79
+      !byte 80,80,81,82,83,84
+      !byte 85,86,86,87,88,89
+      !byte 89,90,91,91,92,93
+      !byte 93,94,94,95,95,96
+      !byte 96,97,97,97,98,98
+      !byte 98,99,99,99,99,100
+      !byte 100,100,100,100,100,100
+      !byte 100,100,100,100,100,100
+      !byte 99,99,99,99,98,98
+      !byte 98,97,97,97,96,96
+      !byte 95,95,94,94,93,93
+      !byte 92,91,91,90,89,89
+      !byte 88,87,86,86,85,84
       !byte 83,82,81,80,80,79
-      !byte 78,77,76,75,74,74
-      !byte 73,72,71,70,69,68
-      !byte 67,66,65,64,63,62
-      !byte 61,60,59,58,57,56
-      !byte 55,54,53,52,51,50
-      !byte 49,48,47,46,45,44
-      !byte 43,42,41,40,39,38
-      !byte 37,36,35,34,33,32
-      !byte 31,30,30,29,28,27
-      !byte 26,26,25,24,23,23
-      !byte 22,21,21,20,19,19
-      !byte 18,18,17,17,16,16
-      !byte 15,15,15,14,14,14
-      !byte 13,13,13,13,13,12
+      !byte 78,77,76,75,74,73
+      !byte 72,71,70,69,68,67
+      !byte 66,65,64,62,61,60
+      !byte 59,58,57,56,55,54
+      !byte 53,52,51,50,49,47
+      !byte 46,45,44,43,42,41
+      !byte 40,39,38,37,36,35
+      !byte 34,33,32,32,31,30
+      !byte 29,28,27,26,26,25
+      !byte 24,23,23,22
+       !byte 21,21,20,19,19,18
+      !byte 18,17,17,16,16,15
+      !byte 15,15,14,14,14,13
+      !byte 13,13,13,12,12,12
       !byte 12,12,12,12,12,12
-      !byte 12,12,12,12,12,12
-      !byte 13,13,13,13,14,14
-      !byte 14,15,15,15,16,16
-      !byte 17,17,18,18,19,19
-      !byte 20,20,21,22,22,23
-      !byte 24,25,25,26,27,28
-      !byte 28,29,30,31,32,33
-      !byte 34,34,35,36,37,38
-      !byte 39,40,41,42,43,44
-      !byte 45,46,47,48,49,50
-      !byte 51,52,53,54,55,56
-      !byte 57,58,59,60,61,62
-      !byte 63,64,65,66,67,68
-      !byte 69,70,71,72,73,74
-      !byte 75,76,77,78,78,79
-      !byte 80,81,82,82
+      !byte 12,12,12,12,13,13
+      !byte 13,13,14,14,14,15
+      !byte 15,15,16,16,17,17
+      !byte 18,18,19,19,20,21
+      !byte 21,22,23,23,24,25
+      !byte 26,26,27,28,29,30
+      !byte 31,32,32,33,34,35
+      !byte 36,37,38,39,40,41
+      !byte 42,43,44,45,46,47
+      !byte 48,50,51,52,53,54
